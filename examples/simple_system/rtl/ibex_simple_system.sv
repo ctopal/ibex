@@ -49,6 +49,8 @@ module ibex_simple_system (
   parameter bit                 ICacheECC                = 1'b0;
   parameter bit                 BranchPredictor          = 1'b0;
   parameter                     SRAMInitFile             = "";
+  
+  parameter int          MEM_SIZE     = 1024 * 1024; // 64 kB
 
   logic clk_sys = 1'b0, rst_sys_n;
 
@@ -70,7 +72,6 @@ module ibex_simple_system (
 
   // host and device signals
   logic           host_req    [NrHosts];
-  logic           host_gnt    [NrHosts];
   logic [31:0]    host_addr   [NrHosts];
   logic           host_we     [NrHosts];
   logic [ 3:0]    host_be     [NrHosts];
@@ -88,6 +89,17 @@ module ibex_simple_system (
   logic           device_rvalid [NrDevices];
   logic [31:0]    device_rdata  [NrDevices];
   logic           device_err    [NrDevices];
+
+  // SRAM arbiter
+  logic [31:0] mem_addr;
+  logic        mem_req;
+  logic        mem_write;
+  logic  [3:0] mem_be;
+  logic [31:0] mem_wdata;
+  logic        mem_rvalid;
+  logic [31:0] mem_rdata;
+
+  logic data_gnt;
 
   // Device address mapping
   logic [31:0] cfg_device_addr_base [NrDevices];
@@ -107,7 +119,6 @@ module ibex_simple_system (
   logic [31:0] instr_rdata;
   logic instr_err;
 
-  assign instr_gnt = instr_req;
   assign instr_err = '0;
 
   `ifdef VERILATOR
@@ -139,7 +150,7 @@ module ibex_simple_system (
     .rst_ni              (rst_sys_n),
 
     .host_req_i          (host_req     ),
-    .host_gnt_o          (host_gnt     ),
+    .host_gnt_o          (             ),
     .host_addr_i         (host_addr    ),
     .host_we_i           (host_we      ),
     .host_be_i           (host_be      ),
@@ -198,7 +209,7 @@ module ibex_simple_system (
       .instr_err_i           (instr_err),
 
       .data_req_o            (host_req[CoreD]),
-      .data_gnt_i            (host_gnt[CoreD]),
+      .data_gnt_i            (data_gnt),
       .data_rvalid_i         (host_rvalid[CoreD]),
       .data_we_o             (host_we[CoreD]),
       .data_be_o             (host_be[CoreD]),
@@ -222,30 +233,55 @@ module ibex_simple_system (
       .core_sleep_o          ()
     );
 
+ always_comb begin
+    mem_req        = 1'b0;
+    mem_addr       = 32'b0;
+    mem_write      = 1'b0;
+    mem_be         = 4'b0;
+    mem_wdata      = 32'b0;
+    if (instr_req) begin
+      mem_req        = instr_req;
+      mem_addr       = instr_addr;                                   
+    end else if (device_req[Ram]) begin                              
+      mem_req        = device_req[Ram] ;
+      mem_write      = device_we[Ram];
+      mem_be         = device_be[Ram];
+      mem_addr       = device_addr[Ram];
+      mem_wdata      = device_wdata[Ram];
+    end
+  end
+
   // SRAM block for instruction and data storage
-  ram_2p #(
-      .Depth(1024*1024/4),
-      .MemInitFile(SRAMInitFile)
-    ) u_ram (
-      .clk_i       (clk_sys),
-      .rst_ni      (rst_sys_n),
+  ram_1p #(
+    .Depth(MEM_SIZE / 4),
+    .MemInitFile(SRAMInitFile)
+  ) u_ram (
+    .clk_i     ( clk_sys        ),
+    .rst_ni    ( rst_sys_n      ),
+    .req_i     ( mem_req        ),
+    .we_i      ( mem_write      ),
+    .be_i      ( mem_be         ),
+    .addr_i    ( mem_addr       ),
+    .wdata_i   ( mem_wdata      ),
+    .rvalid_o  ( mem_rvalid     ),
+    .rdata_o   ( mem_rdata      )
+  );
 
-      .a_req_i     (device_req[Ram]),
-      .a_we_i      (device_we[Ram]),
-      .a_be_i      (device_be[Ram]),
-      .a_addr_i    (device_addr[Ram]),
-      .a_wdata_i   (device_wdata[Ram]),
-      .a_rvalid_o  (device_rvalid[Ram]),
-      .a_rdata_o   (device_rdata[Ram]),
+  assign data_gnt = device_rvalid[Ram] || device_rvalid[SimCtrl] || device_rvalid[Timer];
+  // SRAM to Ibex
+  assign instr_rdata          = mem_rdata;
+  assign device_rdata[Ram]    = mem_rdata;
+  assign instr_rvalid   = mem_rvalid;
+  always_ff @(posedge clk_sys or negedge rst_sys_n) begin
+    if (!rst_sys_n) begin
+      instr_gnt    <= 'b0;
+      device_rvalid[Ram]  <= 'b0;
+    end else begin
+      instr_gnt           <= instr_req && mem_req;
+      device_rvalid[Ram]  <= ~instr_req && device_req[Ram] && mem_req;
+    end
+  end
 
-      .b_req_i     (instr_req),
-      .b_we_i      (1'b0),
-      .b_be_i      (4'b0),
-      .b_addr_i    (instr_addr),
-      .b_wdata_i   (32'b0),
-      .b_rvalid_o  (instr_rvalid),
-      .b_rdata_o   (instr_rdata)
-    );
 
   simulator_ctrl #(
     .LogName("ibex_simple_system.log")
