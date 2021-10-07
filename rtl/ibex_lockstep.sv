@@ -95,6 +95,7 @@ module ibex_lockstep import ibex_pkg::*; #(
   input  logic                         fetch_enable_i,
   output logic                         alert_minor_o,
   output logic                         alert_major_o,
+  input  logic                         icache_inval_i,
   input  logic                         core_busy_i,
   input  logic                         test_en_i,
   input  logic                         scan_rst_ni
@@ -267,6 +268,7 @@ module ibex_lockstep import ibex_pkg::*; #(
     logic [LineSizeECC-1:0]      ic_data_wdata;
     logic                        irq_pending;
     crash_dump_t                 crash_dump;
+    logic                        icache_inval;
     logic                        core_busy;
   } delayed_outputs_t;
 
@@ -298,6 +300,7 @@ module ibex_lockstep import ibex_pkg::*; #(
   assign core_outputs_in.ic_data_wdata   = ic_data_wdata_i;
   assign core_outputs_in.irq_pending     = irq_pending_i;
   assign core_outputs_in.crash_dump      = crash_dump_i;
+  assign core_outputs_in.icache_inval    = icache_inval_i;
   assign core_outputs_in.core_busy       = core_busy_i;
 
   // Delay the outputs
@@ -429,6 +432,7 @@ module ibex_lockstep import ibex_pkg::*; #(
     .fetch_enable_i    (shadow_inputs_q[0].fetch_enable),
     .alert_minor_o     (shadow_alert_minor),
     .alert_major_o     (shadow_alert_major),
+    .icache_inval_o    (shadow_outputs_d.icache_inval),
     .core_busy_o       (shadow_outputs_d.core_busy)
   );
 

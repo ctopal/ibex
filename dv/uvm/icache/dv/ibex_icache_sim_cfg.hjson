@@ -33,7 +33,7 @@
     }
     {
       name: vcs_icache_ecc
-      build_opts: ["-gv tb.ICacheECC=1"]
+      build_opts: ["-gv tb.ICacheECC=1 -gv tb.Scramble=1"]
     }
     {
       name: riviera_icache_ecc

@@ -36,6 +36,7 @@ module ibex_simple_system (
 );
 
   parameter bit                 SecureIbex               = 1'b0;
+  parameter bit                 Scramble                 = 1'b0;
   parameter bit                 PMPEnable                = 1'b0;
   parameter int unsigned        PMPGranularity           = 0;
   parameter int unsigned        PMPNumRegions            = 4;
@@ -107,12 +108,29 @@ module ibex_simple_system (
   logic [31:0] instr_rdata;
   logic instr_err;
 
+  logic scramble_req, scramble_ack;
+  logic [127:0]   scramble_key;
+  logic [63:0] scramble_nonce;
+
+
   assign instr_gnt = instr_req;
   assign instr_err = '0;
+
 
   `ifdef VERILATOR
     assign clk_sys = IO_CLK;
     assign rst_sys_n = IO_RST_N;
+    always begin
+      if (scramble_req) begin
+        scramble_key   = {$urandom(),$urandom(),$urandom(),$urandom()};
+        scramble_nonce = {$urandom(),$urandom()};
+        scramble_ack   = 1'b1;
+      end else begin
+        scramble_key   = '0;
+        scramble_nonce = '0;
+        scramble_ack   = 1'b0;
+      end
+    end
   `else
     initial begin
       rst_sys_n = 1'b0;
@@ -120,6 +138,7 @@ module ibex_simple_system (
       rst_sys_n = 1'b1;
     end
     always begin
+
       #1 clk_sys = 1'b0;
       #1 clk_sys = 1'b1;
     end
@@ -163,6 +182,7 @@ module ibex_simple_system (
 
   ibex_top_tracing #(
       .SecureIbex      ( SecureIbex      ),
+      .Scramble        ( Scramble        ),
       .PMPEnable       ( PMPEnable       ),
       .PMPGranularity  ( PMPGranularity  ),
       .PMPNumRegions   ( PMPNumRegions   ),
@@ -215,6 +235,11 @@ module ibex_simple_system (
       .irq_external_i        (1'b0),
       .irq_fast_i            (15'b0),
       .irq_nm_i              (1'b0),
+
+      .scramble_ack_i        (scramble_ack),
+      .scramble_key_i        (scramble_key),
+      .scramble_nonce_i      (scramble_nonce),
+      .scramble_req_o        (scramble_req),
 
       .debug_req_i           ('b0),
       .crash_dump_o          (),

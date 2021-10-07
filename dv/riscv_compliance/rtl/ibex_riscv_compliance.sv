@@ -28,6 +28,7 @@ module ibex_riscv_compliance (
   parameter bit ICacheECC               = 1'b0;
   parameter bit BranchPredictor         = 1'b0;
   parameter bit SecureIbex              = 1'b0;
+  parameter bit Scramble                = 1'b0;
 
   logic clk_sys, rst_sys_n;
 
@@ -80,6 +81,21 @@ module ibex_riscv_compliance (
   assign cfg_device_addr_base[TestUtilDevice] = 32'h20000;
   assign cfg_device_addr_mask[TestUtilDevice] = ~32'h3FF; // 1 kB
 
+  logic scramble_req, scramble_ack;
+  logic [127:0]   scramble_key;
+  logic [63:0] scramble_nonce;
+
+  always begin
+    if (scramble_req) begin
+      scramble_key   = {$urandom(),$urandom(),$urandom(),$urandom()};
+      scramble_nonce = {$urandom(),$urandom()};
+      scramble_ack   = 1'b1;
+    end else begin
+      scramble_key   = '0;
+      scramble_nonce = '0;
+      scramble_ack   = 1'b0;
+    end
+  end
 
   bus #(
     .NrDevices   (NrDevices),
@@ -127,6 +143,7 @@ module ibex_riscv_compliance (
       .ICacheECC       (ICacheECC       ),
       .BranchPredictor (BranchPredictor ),
       .SecureIbex      (SecureIbex      ),
+      .Scramble        (Scramble        ),
       .DmHaltAddr      (32'h00000000    ),
       .DmExceptionAddr (32'h00000000    )
     ) u_top (
@@ -166,6 +183,11 @@ module ibex_riscv_compliance (
       .irq_external_i     (1'b0              ),
       .irq_fast_i         (15'b0             ),
       .irq_nm_i           (1'b0              ),
+
+      .scramble_ack_i     (scramble_ack      ),
+      .scramble_key_i     (scramble_key      ),
+      .scramble_nonce_i   (scramble_nonce    ),
+      .scramble_req_o     (scramble_req      ),
 
       .debug_req_i        ('b0               ),
       .crash_dump_o       (                  ),
