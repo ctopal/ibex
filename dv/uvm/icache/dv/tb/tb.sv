@@ -2,7 +2,9 @@
 // Licensed under the Apache License, Version 2.0, see LICENSE for details.
 // SPDX-License-Identifier: Apache-2.0
 //
-module tb #(parameter bit ICacheECC = 1'b0);
+module tb #(
+ parameter bit ICacheECC = 1'b0,
+ parameter bit Scramble = 1'b0);
   // dep packages
   import uvm_pkg::*;
   import dv_utils_pkg::*;
@@ -21,9 +23,14 @@ module tb #(parameter bit ICacheECC = 1'b0);
   ibex_icache_core_if core_if (.clk(clk), .rst_n(rst_n));
   ibex_icache_mem_if  mem_if  (.clk(clk), .rst_n(rst_n));
 
+  logic scramble_ack;
+  logic [127:0]   scramble_key;
+  logic [63:0] scramble_nonce;
+
   // dut
   ic_top #(
-    .ICacheECC (ICacheECC)
+    .ICacheECC (ICacheECC),
+    .Scramble(Scramble)
   ) dut (
     .clk_i               (clk),
     .rst_ni              (rst_n),
@@ -44,6 +51,9 @@ module tb #(parameter bit ICacheECC = 1'b0);
     .icache_enable_i     (core_if.enable),
     .icache_inval_i      (core_if.invalidate),
     .busy_o              (core_if.busy),
+    .scramble_ack_i      (scramble_ack),
+    .scramble_key_i      (scramble_key),
+    .scramble_nonce_i    (scramble_nonce),
 
     // Connect icache <-> instruction bus interface
     .instr_req_o         (mem_if.req),
@@ -55,26 +65,31 @@ module tb #(parameter bit ICacheECC = 1'b0);
     .instr_rvalid_i      (mem_if.rvalid)
   );
 
+
   // If the ICacheECC parameter is set in the DUT, generate another interface for each tag ram and
   // each data ram, binding them into the RAMs themselves. ECC tests can use these to insert errors
   // into memory lookups.
   generate if (dut.ICacheECC) begin : gen_ecc
     for (genvar w = 0; w < ibex_pkg::IC_NUM_WAYS; w++) begin : gen_ecc_ifs
-      bind dut.gen_rams[w].tag_bank.gen_badbit.u_impl_badbit  ibex_icache_ecc_if tag_bank_if (.*);
-      bind dut.gen_rams[w].data_bank.gen_badbit.u_impl_badbit ibex_icache_ecc_if data_bank_if (.*);
+      bind dut.gen_rams[w].tag_bank.u_prim_ram_1p_adv.u_mem.gen_badbit.u_impl_badbit
+            ibex_icache_ecc_if tag_bank_if (.*);
+      bind dut.gen_rams[w].data_bank.u_prim_ram_1p_adv.u_mem.gen_badbit.u_impl_badbit
+            ibex_icache_ecc_if data_bank_if (.*);
 
       initial begin
         uvm_config_db#(virtual ibex_icache_ecc_if)::
           set(null,
               $sformatf("*.env.ecc_tag_agents[%0d]*", w),
               "vif",
-              dut.gen_rams[w].tag_bank.gen_badbit.u_impl_badbit.tag_bank_if);
+              dut.gen_rams[w].tag_bank.u_prim_ram_1p_adv.
+              u_mem.gen_badbit.u_impl_badbit.tag_bank_if);
 
         uvm_config_db#(virtual ibex_icache_ecc_if)::
           set(null,
               $sformatf("*.env.ecc_data_agents[%0d]*", w),
               "vif",
-              dut.gen_rams[w].data_bank.gen_badbit.u_impl_badbit.data_bank_if);
+              dut.gen_rams[w].data_bank.u_prim_ram_1p_adv.
+              u_mem.gen_badbit.u_impl_badbit.data_bank_if);
       end
     end
   end
@@ -83,6 +98,19 @@ module tb #(parameter bit ICacheECC = 1'b0);
   initial begin
     // drive clk and rst_n from clk_if
     clk_rst_if.set_active();
+    scramble_key   = {$urandom(),$urandom(),$urandom(),$urandom()};
+    scramble_nonce = {$urandom(),$urandom()};
+    scramble_ack   = 1'b1;
+    fork begin
+      forever @(posedge core_if.invalidate) begin
+          scramble_ack   = 1'b0;
+          #(20 * $urandom_range(1, 10))
+          scramble_key   = {$urandom(),$urandom(),$urandom(),$urandom()};
+          scramble_nonce = {$urandom(),$urandom()};
+          scramble_ack   = 1'b1;
+      end
+    end
+    join_none
 
     // Store virtual interfaces into the UVM config database. ECC interfaces are done separately
     // above because otherwise you have to repeat the (verbose) generate loop.

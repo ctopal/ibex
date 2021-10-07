@@ -53,6 +53,7 @@ module ibex_if_stage import ibex_pkg::*; #(
   output logic [IC_INDEX_W-1:0]       ic_data_addr_o,
   output logic [LineSizeECC-1:0]      ic_data_wdata_o,
   input  logic [LineSizeECC-1:0]      ic_data_rdata_i [IC_NUM_WAYS],
+  input  logic                        ic_scr_key_valid_i,
 
   // output of ID stage
   output logic                        instr_valid_id_o,         // instr in IF-ID is valid
@@ -242,6 +243,7 @@ module ibex_if_stage import ibex_pkg::*; #(
         .ic_data_addr_o      ( ic_data_addr_o             ),
         .ic_data_wdata_o     ( ic_data_wdata_o            ),
         .ic_data_rdata_i     ( ic_data_rdata_i            ),
+        .ic_scr_key_valid_i  ( ic_scr_key_valid_i         ),
 
         .icache_enable_i     ( icache_enable_i            ),
         .icache_inval_i      ( icache_inval_i             ),
@@ -281,13 +283,14 @@ module ibex_if_stage import ibex_pkg::*; #(
         .busy_o              ( prefetch_busy              )
     );
     // ICache tieoffs
-    logic                   unused_icen, unused_icinv;
+    logic                   unused_icen, unused_icinv, unused_scr_ack;
     logic [TagSizeECC-1:0]  unused_tag_ram_input [IC_NUM_WAYS];
     logic [LineSizeECC-1:0] unused_data_ram_input [IC_NUM_WAYS];
     assign unused_icen           = icache_enable_i;
     assign unused_icinv          = icache_inval_i;
     assign unused_tag_ram_input  = ic_tag_rdata_i;
     assign unused_data_ram_input = ic_data_rdata_i;
+    assign unused_scr_ack        = ic_scr_key_valid_i;
     assign ic_tag_req_o          = 'b0;
     assign ic_tag_write_o        = 'b0;
     assign ic_tag_addr_o         = 'b0;

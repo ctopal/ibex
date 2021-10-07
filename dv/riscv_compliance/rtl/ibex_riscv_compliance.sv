@@ -28,6 +28,7 @@ module ibex_riscv_compliance (
   parameter bit ICacheECC               = 1'b0;
   parameter bit BranchPredictor         = 1'b0;
   parameter bit SecureIbex              = 1'b0;
+  parameter bit Scramble                = 1'b0;
 
   logic clk_sys, rst_sys_n;
 
@@ -80,7 +81,6 @@ module ibex_riscv_compliance (
   assign cfg_device_addr_base[TestUtilDevice] = 32'h20000;
   assign cfg_device_addr_mask[TestUtilDevice] = ~32'h3FF; // 1 kB
 
-
   bus #(
     .NrDevices   (NrDevices),
     .NrHosts     (NrHosts  ),
@@ -127,6 +127,7 @@ module ibex_riscv_compliance (
       .ICacheECC       (ICacheECC       ),
       .BranchPredictor (BranchPredictor ),
       .SecureIbex      (SecureIbex      ),
+      .Scramble        (Scramble        ),
       .DmHaltAddr      (32'h00000000    ),
       .DmExceptionAddr (32'h00000000    )
     ) u_top (
@@ -166,6 +167,11 @@ module ibex_riscv_compliance (
       .irq_external_i     (1'b0              ),
       .irq_fast_i         (15'b0             ),
       .irq_nm_i           (1'b0              ),
+
+      .scramble_ack_i     ('0                ),
+      .scramble_key_i     ('0                ),
+      .scramble_nonce_i   ('0                ),
+      .scramble_req_o     (                  ),
 
       .debug_req_i        ('b0               ),
       .crash_dump_o       (                  ),

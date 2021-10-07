@@ -100,6 +100,12 @@ parameters:
     paramtype: vlogparam
     description: "Number of PMP regions"
 
+  Scramble:
+    datatype: int
+    default: 0
+    paramtype: vlogparam
+    description: "Enables security hardening features (EXPERIMENTAL) [0/1]"
+
 targets:
   default: &default_target
     filesets:
@@ -119,6 +125,7 @@ targets:
       - PMPEnable
       - PMPGranularity
       - PMPNumRegions
+      - Scramble
       - SRAMInitFile
 
   lint:
