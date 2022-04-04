@@ -477,12 +477,13 @@ post_compare: $(OUT-SEED)/regr.log
 # Generate RISCV-DV functional coverage
 # TODO(udi) - add B extension
 .PHONY: riscv_dv_cov
-riscv_dv_fcov: $(rtl-sim-logs)
+riscv_dv_fcov:
 	$(verb)python3 ${GEN_DIR}/cov.py \
           --core ibex \
           --dir ${OUT-SEED}/rtl_sim \
           -o ${OUT-SEED}/fcov \
           --simulator "${SIMULATOR}" \
+          --opts "--gen_timeout 1000" \
           --isa rv32imcb \
           --custom_target riscv_dv_extension
 
