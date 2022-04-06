@@ -326,6 +326,12 @@ interface core_ibex_fcov_if import ibex_pkg::*; (
     cp_wb_reg_no_load_hz: coverpoint id_stage_i.fcov_rf_rd_wb_hz &&
                                      !wb_stage_i.outstanding_load_wb_o;
 
+    cp_store_raw_hz: coverpoint id_stage_i.instr_type_wb_o == WB_INSTR_STORE &&
+                                id_instr_category == InstrCategoryLoad &&
+                                load_store_unit_i.addr_last_d == load_store_unit_i.addr_last_o;
+
+    cp_mprv: coverpoint cs_registers_i.mstatus_q.mprv;
+
     cp_ls_error_exception: coverpoint load_store_unit_i.fcov_ls_error_exception;
     cp_ls_pmp_exception: coverpoint load_store_unit_i.fcov_ls_pmp_exception;
 
