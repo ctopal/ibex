@@ -1642,6 +1642,11 @@ module ibex_core import ibex_pkg::*; #(
       `DV_FCOV_SIGNAL(logic, pmp_region_dchan_access,
           g_pmp.pmp_i.region_match_all[PMP_D][i_region] & data_req_out)
 
+      `DV_FCOV_SIGNAL(logic, warl_check_pmpcfg,
+          fcov_csr_write &&
+          (cs_registers_i.g_pmp_registers.g_pmp_csrs[i_region].u_pmp_cfg_csr.wr_data_i !=
+          cs_registers_i.csr_wdata_int[(i_region%4)*PMP_CFG_W+:PMP_CFG_W]))
+
       if (i_region > 0) begin : g_region_priority
         assign fcov_pmp_region_ichan_priority[i_region] =
           g_pmp.pmp_i.region_match_all[PMP_I][i_region] &
