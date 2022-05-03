@@ -23,6 +23,8 @@ interface core_ibex_pmp_fcov_if import ibex_pkg::*; #(
 
   input logic lsu_req_done
 );
+  localparam int unsigned PMPNumChan = 3;
+
   `include "dv_fcov_macros.svh"
   import uvm_pkg::*;
 

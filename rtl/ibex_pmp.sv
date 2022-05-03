@@ -36,10 +36,96 @@ module ibex_pmp #(
   logic [PMPNumChan-1:0][PMPNumRegions-1:0]   region_match_eq;
   logic [PMPNumChan-1:0][PMPNumRegions-1:0]   region_match_all;
   logic [PMPNumChan-1:0][PMPNumRegions-1:0]   region_basic_perm_check;
-  logic [PMPNumChan-1:0][PMPNumRegions-1:0]   region_mml_perm_check;
-  logic [PMPNumChan-1:0][PMPNumRegions-1:0]   region_orig_perm_check;
-  logic [PMPNumChan-1:0]                      access_fault;
+  logic [PMPNumChan-1:0][PMPNumRegions-1:0]   region_perm_check;
 
+  function automatic logic perm_check(logic csr_pmp_mseccfg_mml,
+                                      ibex_pkg::pmp_cfg_t csr_pmp_cfg,
+                                      ibex_pkg::pmp_req_e pmp_req_type,
+                                      ibex_pkg::priv_lvl_e priv_mode,
+                                      logic permission_check);
+    return csr_pmp_mseccfg_mml ? mml_perm_check(csr_pmp_cfg,
+                                                  pmp_req_type,
+                                                  priv_mode,
+                                                  permission_check) :
+                                   orig_perm_check(csr_pmp_cfg.lock,
+                                                   priv_mode,
+                                                   permission_check);
+  endfunction
+
+  // Compute permissions checks that apply when MSECCFG.MML is set. Added for Smepmp support.
+  function automatic logic mml_perm_check(ibex_pkg::pmp_cfg_t csr_pmp_cfg,
+                                          ibex_pkg::pmp_req_e pmp_req_type,
+                                          ibex_pkg::priv_lvl_e priv_mode,
+                                          logic permission_check);
+    logic result = 1'b0;
+    logic unused_cfg = |csr_pmp_cfg.mode;
+
+    if (!csr_pmp_cfg.read && csr_pmp_cfg.write) begin
+      // Special-case shared regions where R = 0, W = 1
+      unique case ({csr_pmp_cfg.lock, csr_pmp_cfg.exec})
+        // Read/write in M, read only in S/U
+        2'b00: result =
+            (pmp_req_type == PMP_ACC_READ) |
+            ((pmp_req_type == PMP_ACC_WRITE) & (priv_mode == PRIV_LVL_M));
+        // Read/write in M/S/U
+        2'b01: result =
+            (pmp_req_type == PMP_ACC_READ) | (pmp_req_type == PMP_ACC_WRITE);
+        // Execute only on M/S/U
+        2'b10: result = (pmp_req_type == PMP_ACC_EXEC);
+        // Read/execute in M, execute only on S/U
+        2'b11: result =
+            (pmp_req_type == PMP_ACC_EXEC) |
+            ((pmp_req_type == PMP_ACC_READ) & (priv_mode == PRIV_LVL_M));
+        default: ;
+      endcase
+    end else begin
+      if (csr_pmp_cfg.read & csr_pmp_cfg.write & csr_pmp_cfg.exec
+          & csr_pmp_cfg.lock) begin
+        // Special-case shared read only region when R = 1, W = 1, X = 1, L = 1
+        result = pmp_req_type == PMP_ACC_READ;
+      end else begin
+        // Otherwise use basic permission check. Permission is always denied if in S/U mode and
+        // L is set or if in M mode and L is unset.
+        result =
+          priv_mode == PRIV_LVL_M ? csr_pmp_cfg.lock & permission_check :
+                                     ~csr_pmp_cfg.lock & permission_check;
+      end
+    end
+    return result;
+  endfunction
+
+  // Compute permissions checks that apply when MSECCFG.MML is unset. This is the original PMP
+  // behaviour before Smepmp was added.
+  function automatic logic orig_perm_check(logic pmp_cfg_lock,
+                                          ibex_pkg::priv_lvl_e priv_mode,
+                                          logic permission_check);
+      return (priv_mode == PRIV_LVL_M) ?
+          // For M-mode, any region which matches with the L-bit clear, or with sufficient
+          // access permissions will be allowed
+          (~pmp_cfg_lock | permission_check) :
+          // For other modes, the lock bit doesn't matter
+          permission_check;
+  endfunction
+
+  // Access fault determination / prioritization
+  function automatic logic access_fault_check (logic csr_pmp_mseccfg_mmwp,
+                                               logic [PMPNumRegions-1:0] match_all,
+                                               ibex_pkg::priv_lvl_e priv_mode,
+                                               logic [PMPNumRegions-1:0] permission_check);
+
+
+    // When MSECCFG.MMWP is set default deny always, otherwise allow for M-mode, deny for other
+    // modes
+    logic result = csr_pmp_mseccfg_mmwp | (priv_mode != PRIV_LVL_M);
+
+    // PMP entries are statically prioritized, from 0 to N-1
+    // The lowest-numbered PMP entry which matches an address determines accessibility
+    for (int r = PMPNumRegions - 1; r >= 0; r--) begin
+      if (match_all[r])
+        result = ~permission_check[r];
+    end
+    return result;
+  endfunction
 
   // ---------------
   // Access checking
@@ -108,82 +194,22 @@ module ibex_pmp #(
           ((pmp_req_type_i[c] == PMP_ACC_WRITE) & csr_pmp_cfg_i[r].write) |
           ((pmp_req_type_i[c] == PMP_ACC_READ)  & csr_pmp_cfg_i[r].read);
 
-      // Compute permissions checks that apply when MSECCFG.MML is unset. This is the original PMP
-      // behaviour before Smepmp was added.
-      assign region_orig_perm_check[c][r] = (priv_mode_i[c] == PRIV_LVL_M) ?
-          // For M-mode, any region which matches with the L-bit clear, or with sufficient
-          // access permissions will be allowed
-          (~csr_pmp_cfg_i[r].lock | region_basic_perm_check[c][r]) :
-          // For other modes, the lock bit doesn't matter
-          region_basic_perm_check[c][r];
-
-      // Compute permission checks that apply when MSECCFG.MML is set.
-      always_comb begin
-        region_mml_perm_check[c][r] = 1'b0;
-
-        if (!csr_pmp_cfg_i[r].read && csr_pmp_cfg_i[r].write) begin
-          // Special-case shared regions where R = 0, W = 1
-          unique case ({csr_pmp_cfg_i[r].lock, csr_pmp_cfg_i[r].exec})
-            // Read/write in M, read only in S/U
-            2'b00: region_mml_perm_check[c][r] =
-                (pmp_req_type_i[c] == PMP_ACC_READ) |
-                ((pmp_req_type_i[c] == PMP_ACC_WRITE) & (priv_mode_i[c] == PRIV_LVL_M));
-            // Read/write in M/S/U
-            2'b01: region_mml_perm_check[c][r] =
-                (pmp_req_type_i[c] == PMP_ACC_READ) | (pmp_req_type_i[c] == PMP_ACC_WRITE);
-            // Execute only on M/S/U
-            2'b10: region_mml_perm_check[c][r] = (pmp_req_type_i[c] == PMP_ACC_EXEC);
-            // Read/execute in M, execute only on S/U
-            2'b11: region_mml_perm_check[c][r] =
-                (pmp_req_type_i[c] == PMP_ACC_EXEC) |
-                ((pmp_req_type_i[c] == PMP_ACC_READ) & (priv_mode_i[c] == PRIV_LVL_M));
-            default: ;
-          endcase
-        end else begin
-          if (csr_pmp_cfg_i[r].read & csr_pmp_cfg_i[r].write & csr_pmp_cfg_i[r].exec
-              & csr_pmp_cfg_i[r].lock) begin
-            // Special-case shared read only region when R = 1, W = 1, X = 1, L = 1
-            region_mml_perm_check[c][r] = pmp_req_type_i[c] == PMP_ACC_READ;
-          end else begin
-            // Otherwise use basic permission check. Permission is always denied if in S/U mode and
-            // L is set or if in M mode and L is unset.
-            region_mml_perm_check[c][r] =
-              priv_mode_i[c] == PRIV_LVL_M ? csr_pmp_cfg_i[r].lock & region_basic_perm_check[c][r] :
-                                            ~csr_pmp_cfg_i[r].lock & region_basic_perm_check[c][r];
-          end
-        end
-      end
+      assign region_perm_check[c][r] = perm_check(csr_pmp_mseccfg_i.mml,
+                                                  csr_pmp_cfg_i[r],
+                                                  pmp_req_type_i[c],
+                                                  priv_mode_i[c],
+                                                  region_basic_perm_check[c][r]);
     end
 
-    // Access fault determination / prioritization
-    always_comb begin
-      // When MSECCFG.MMWP is set default deny always, otherwise allow for M-mode, deny for other
-      // modes
-      access_fault[c] = csr_pmp_mseccfg_i.mmwp | (priv_mode_i[c] != PRIV_LVL_M);
-
-      // PMP entries are statically prioritized, from 0 to N-1
-      // The lowest-numbered PMP entry which matches an address determines accessibility
-      for (int r = PMPNumRegions - 1; r >= 0; r--) begin
-        if (region_match_all[c][r]) begin
-          if (csr_pmp_mseccfg_i.mml) begin
-            // When MSECCFG.MML is set use MML specific permission check
-            access_fault[c] = ~region_mml_perm_check[c][r];
-          end else begin
-            // Otherwise use original (non Smepmp) PMP behaviour
-            access_fault[c] = ~region_orig_perm_check[c][r];
-          end
-        end
-      end
-    end
-
-    assign pmp_req_err_o[c] = access_fault[c];
+    assign pmp_req_err_o[c] = access_fault_check(csr_pmp_mseccfg_i.mmwp,
+                                                 region_match_all[c],
+                                                 priv_mode_i[c],
+                                                 region_perm_check[c]);
 
     // Access fails check against one region but access allowed due to another higher-priority
     // region.
     `DV_FCOV_SIGNAL(logic, pmp_region_override,
-      ~pmp_req_err_o[c] &
-      |(region_match_all[c] & (csr_pmp_mseccfg_i.mml ? ~region_mml_perm_check[c] :
-                                                       ~region_orig_perm_check[c])))
+      ~pmp_req_err_o[c] & |(region_match_all[c] & ~region_perm_check[c]))
   end
 
   // RLB, rule locking bypass, is only relevant to ibex_cs_registers which controls writes to the
