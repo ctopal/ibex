@@ -1641,6 +1641,7 @@ module ibex_core import ibex_pkg::*; #(
           g_pmp.pmp_i.region_match_all[PMP_D][i_region] & data_req_out)
       // pmp_cfg[5:6] is reserved and because of that the width of it inside cs_registers module
       // is 6-bit.
+      // TODO: Cover writes to the reserved bits
       `DV_FCOV_SIGNAL(logic, warl_check_pmpcfg,
           fcov_csr_write &&
           (cs_registers_i.g_pmp_registers.g_pmp_csrs[i_region].u_pmp_cfg_csr.wr_data_i !=
