@@ -42,6 +42,14 @@ module ibex_pmp #(
   // Functions for PMP //
   ///////////////////////
 
+  // Flow of the PMP checking operation follows as below
+  //
+  // basic_perm_check ---> perm_check_wrapper ---> mml_perm_check/orig_perm_check ---/
+  //                                                                                 |
+  // region_match_all --------------------------------> access_fault_check <----------
+  //                                                            |
+  //                                                            \--> pmp_req_err_o
+
   // A wrapper function in which its decided which form of permission check function gets called
   function automatic logic perm_check_wrapper(logic csr_pmp_mseccfg_mml,
                                       ibex_pkg::pmp_cfg_t csr_pmp_cfg,
@@ -52,7 +60,7 @@ module ibex_pmp #(
       return mml_perm_check(csr_pmp_cfg,
                             pmp_req_type,
                             priv_mode,
-                            permission_check)
+                            permission_check);
     end else begin
       return orig_perm_check(csr_pmp_cfg.lock,
                              priv_mode,
@@ -202,11 +210,11 @@ module ibex_pmp #(
           ((pmp_req_type_i[c] == PMP_ACC_WRITE) & csr_pmp_cfg_i[r].write) |
           ((pmp_req_type_i[c] == PMP_ACC_READ)  & csr_pmp_cfg_i[r].read);
 
-      assign region_perm_check[c][r] = perm_check(csr_pmp_mseccfg_i.mml,
-                                                  csr_pmp_cfg_i[r],
-                                                  pmp_req_type_i[c],
-                                                  priv_mode_i[c],
-                                                  region_basic_perm_check[c][r]);
+      assign region_perm_check[c][r] = perm_check_wrapper(csr_pmp_mseccfg_i.mml,
+                                                          csr_pmp_cfg_i[r],
+                                                          pmp_req_type_i[c],
+                                                          priv_mode_i[c],
+                                                          region_basic_perm_check[c][r]);
     end
 
     assign pmp_req_err_o[c] = access_fault_check(csr_pmp_mseccfg_i.mmwp,
