@@ -204,7 +204,7 @@ Furthermore they can all occur together and must be appropriately prioritised (c
 * Exception from illegal instruction (covered by the illegal instruction categories).
 * Exception from memory fetch error.
 * ``pmp_dside_mode_cross`` - Exception from memory access PMP violation.
-* Unaligned access cases (both accesses saw error, first or second only saw error, or neither saw error) for both kinds of memory exceptions.
+* ``misaligned_lsu_access_cross``, ``pmp_instr_edge_cross`` - Unaligned access cases (both accesses saw error, first or second only saw error, or neither saw error) for both kinds of memory exceptions.
 * Interrupt raised/taken.
 
   * ``cp_interrupt_taken`` - Interrupt raised/taken for each available interrupt line.
@@ -218,16 +218,16 @@ Furthermore they can all occur together and must be appropriately prioritised (c
 
   * Instruction matching trigger point causes exception
 
-* Ibex operating in debug mode.
+* ``debug_instruction_cross`` - Ibex operating in debug mode.
 * ``irq_wfi_cross``, ``debug_wfi_cross`` - Debug and Interrupt whilst sleeping with WFI
 
-  * Cover with global interrupts enabled and disabled
+  * ``irq_wfi_cross`` - Cover with global interrupts enabled and disabled
   * Cover with specific interrupt enabled and disabled (Should exit sleep when
     interrupt is enabled but global interrupts set to disabled, should continue
     sleeping when both are disabled).
     Continuing to sleep in the case explained above is covered by ``cp_irq_continue_sleep``
 
-* Debug and interrupt occurring whilst entering WFI
+* ``irq_wfi_cross``, ``debug_wfi_cross`` - Debug and interrupt occurring whilst entering WFI
 
   * Covering period between WFI entering ID/EX stage and going into sleep
 
