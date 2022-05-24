@@ -29,7 +29,6 @@ interface core_ibex_pmp_fcov_if import ibex_pkg::*; #(
   // Enum to give more readable coverage results for privilege bits. 4 bits are from the pmpcfg CSF
   // (L, X, W, R) and the 5th is the MML bit. Setting the MML bit changes the meaning of the other
   // 4 bits
-  // TODO: Better MML names?
   typedef enum logic [4:0] {
     NONE        = 5'b00000,
     R           = 5'b00001,
@@ -114,9 +113,6 @@ interface core_ibex_pmp_fcov_if import ibex_pkg::*; #(
       covergroup pmp_region_cg @(posedge clk_i);
         option.per_instance = 1;
         option.name = "pmp_region_cg";
-
-        cp_warl_check_pmpcfg : coverpoint
-          g_pmp_fcov_signals.g_pmp_region_fcov[i_region].fcov_warl_check_pmpcfg;
 
         cp_rlb : coverpoint csr_pmp_mseccfg.rlb;
 
@@ -252,15 +248,17 @@ interface core_ibex_pmp_fcov_if import ibex_pkg::*; #(
                binsof(cp_req_type_iside) intersect {PMP_ACC_EXEC} &&
                binsof(pmp_iside_req_err) intersect {0})
               with (cp_priv_lvl_iside == PRIV_LVL_U || (cp_region_priv_bits & 5'b01000));
-            illegal_bins illegal_machine_allow_exec =
+            wildcard illegal_bins illegal_machine_allow_exec =
               // MML related disallowance for Machine Mode
-              (binsof(cp_priv_lvl_iside) intersect {PRIV_LVL_M} &&
+              (binsof(cp_region_priv_bits) intersect {5'b1????} &&
+               binsof(cp_priv_lvl_iside) intersect {PRIV_LVL_M} &&
                binsof(cp_req_type_iside) intersect {PMP_ACC_EXEC} &&
                binsof(pmp_iside_req_err) intersect {0})
               with (!(cp_region_priv_bits inside {MML_XM_XU, MML_XRM_XU, MML_XRM, MML_XM}));
-            illegal_bins illegal_user_allow_exec =
+            wildcard illegal_bins illegal_user_allow_exec =
               // MML related disallowance for User Mode
-              (binsof(cp_priv_lvl_iside) intersect {PRIV_LVL_U} &&
+              (binsof(cp_region_priv_bits) intersect {5'b1????} &&
+               binsof(cp_priv_lvl_iside) intersect {PRIV_LVL_U} &&
                binsof(cp_req_type_iside) intersect {PMP_ACC_EXEC} &&
                binsof(pmp_iside_req_err) intersect {0})
               with (!(cp_region_priv_bits inside {MML_XM_XU, MML_XRM_XU, MML_XRU, MML_XU,
@@ -272,15 +270,17 @@ interface core_ibex_pmp_fcov_if import ibex_pkg::*; #(
               (binsof(cp_region_priv_bits) intersect {5'b0?1??} &&
                binsof(cp_req_type_iside) intersect {PMP_ACC_EXEC} &&
                binsof(pmp_iside_req_err) intersect {1});
-            illegal_bins illegal_machine_deny_exec =
+            wildcard illegal_bins illegal_machine_deny_exec =
               //MML related allowance for Machine Mode
-              (binsof(cp_priv_lvl_iside) intersect {PRIV_LVL_M} &&
+              (binsof(cp_region_priv_bits) intersect {5'b1????} &&
+               binsof(cp_priv_lvl_iside) intersect {PRIV_LVL_M} &&
                binsof(cp_req_type_iside) intersect {PMP_ACC_EXEC} &&
                binsof(pmp_iside_req_err) intersect {1})
               with (cp_region_priv_bits inside {MML_XM_XU, MML_XRM_XU, MML_XRM, MML_XM});
-            illegal_bins illegal_user_deny_exec =
+            wildcard illegal_bins illegal_user_deny_exec =
               //MML related allowance for User Mode
-              (binsof(cp_priv_lvl_iside) intersect {PRIV_LVL_U} &&
+              (binsof(cp_region_priv_bits) intersect {5'b1????} &&
+               binsof(cp_priv_lvl_iside) intersect {PRIV_LVL_U} &&
                binsof(cp_req_type_iside) intersect {PMP_ACC_EXEC} &&
                binsof(pmp_iside_req_err) intersect {1})
               with (cp_region_priv_bits inside {MML_XM_XU, MML_XRM_XU, MML_XRU, MML_XU,
@@ -300,15 +300,17 @@ interface core_ibex_pmp_fcov_if import ibex_pkg::*; #(
              binsof(cp_req_type_iside2) intersect {PMP_ACC_EXEC} &&
              binsof(pmp_iside2_req_err) intersect {0})
             with (cp_priv_lvl_iside2 == PRIV_LVL_U || (cp_region_priv_bits & 5'b01000));
-          illegal_bins illegal_machine_allow_exec =
+          wildcard illegal_bins illegal_machine_allow_exec =
             // MML related disallowance for Machine Mode
-            (binsof(cp_priv_lvl_iside2) intersect {PRIV_LVL_M} &&
+            (binsof(cp_region_priv_bits) intersect {5'b1????} &&
+             binsof(cp_priv_lvl_iside2) intersect {PRIV_LVL_M} &&
              binsof(cp_req_type_iside2) intersect {PMP_ACC_EXEC} &&
              binsof(pmp_iside2_req_err) intersect {0})
             with (!(cp_region_priv_bits inside {MML_XM_XU, MML_XRM_XU, MML_XRM, MML_XM}));
-          illegal_bins illegal_user_allow_exec =
+          wildcard illegal_bins illegal_user_allow_exec =
             // MML related disallowance for User Mode
-            (binsof(cp_priv_lvl_iside2) intersect {PRIV_LVL_U} &&
+            (binsof(cp_region_priv_bits) intersect {5'b1????} &&
+             binsof(cp_priv_lvl_iside2) intersect {PRIV_LVL_U} &&
              binsof(cp_req_type_iside2) intersect {PMP_ACC_EXEC} &&
              binsof(pmp_iside2_req_err) intersect {0})
             with (!(cp_region_priv_bits inside {MML_XM_XU, MML_XRM_XU, MML_XRU, MML_XU,
@@ -320,15 +322,17 @@ interface core_ibex_pmp_fcov_if import ibex_pkg::*; #(
             (binsof(cp_region_priv_bits) intersect {5'b0?1??} &&
              binsof(cp_req_type_iside2) intersect {PMP_ACC_EXEC} &&
              binsof(pmp_iside2_req_err) intersect {1});
-          illegal_bins illegal_machine_deny_exec =
+          wildcard illegal_bins illegal_machine_deny_exec =
             //MML related allowance for Machine Mode
-            (binsof(cp_priv_lvl_iside2) intersect {PRIV_LVL_M} &&
+            (binsof(cp_region_priv_bits) intersect {5'b1????} &&
+             binsof(cp_priv_lvl_iside2) intersect {PRIV_LVL_M} &&
              binsof(cp_req_type_iside2) intersect {PMP_ACC_EXEC} &&
              binsof(pmp_iside2_req_err) intersect {1})
             with (cp_region_priv_bits inside {MML_XM_XU, MML_XRM_XU, MML_XRM, MML_XM});
-          illegal_bins illegal_user_deny_exec =
+          wildcard illegal_bins illegal_user_deny_exec =
             //MML related allowance for User Mode
-            (binsof(cp_priv_lvl_iside2) intersect {PRIV_LVL_U} &&
+            (binsof(cp_region_priv_bits) intersect {5'b1????} &&
+             binsof(cp_priv_lvl_iside2) intersect {PRIV_LVL_U} &&
              binsof(cp_req_type_iside2) intersect {PMP_ACC_EXEC} &&
              binsof(pmp_iside2_req_err) intersect {1})
             with (cp_region_priv_bits inside {MML_XM_XU, MML_XRM_XU, MML_XRU, MML_XU, MML_XWRU});
@@ -347,16 +351,18 @@ interface core_ibex_pmp_fcov_if import ibex_pkg::*; #(
              binsof(cp_req_type_dside) intersect {PMP_ACC_READ} &&
              binsof(pmp_dside_req_err) intersect {0})
             with (cp_priv_lvl_dside == PRIV_LVL_U || (cp_region_priv_bits & 5'b01000));
-          illegal_bins illegal_machine_allow_read =
+          wildcard illegal_bins illegal_machine_allow_read =
             // MML related disallowance for Machine Mode
-            (binsof(cp_priv_lvl_dside) intersect {PRIV_LVL_M} &&
+            (binsof(cp_region_priv_bits) intersect {5'b1????} &&
+             binsof(cp_priv_lvl_dside) intersect {PRIV_LVL_M} &&
              binsof(cp_req_type_dside) intersect {PMP_ACC_READ} &&
              binsof(pmp_dside_req_err) intersect {0})
             with (!(cp_region_priv_bits inside {MML_WRM_RU, MML_WRM_WRU, MML_RM_RU, MML_RM,
                                                 MML_WRM, MML_XRM, MML_XRM_XU}));
-          illegal_bins illegal_user_allow_read =
+          wildcard illegal_bins illegal_user_allow_read =
             // MML related disallowance for User Mode
-            (binsof(cp_priv_lvl_dside) intersect {PRIV_LVL_U} &&
+            (binsof(cp_region_priv_bits) intersect {5'b1????} &&
+             binsof(cp_priv_lvl_dside) intersect {PRIV_LVL_U} &&
              binsof(cp_req_type_dside) intersect {PMP_ACC_READ} &&
              binsof(pmp_dside_req_err) intersect {0})
             with (!(cp_region_priv_bits inside {MML_WRM_RU, MML_WRM_WRU, MML_RM_RU, MML_RU,
@@ -368,16 +374,18 @@ interface core_ibex_pmp_fcov_if import ibex_pkg::*; #(
             (binsof(cp_region_priv_bits) intersect {5'b0???1} &&
              binsof(cp_req_type_dside) intersect {PMP_ACC_READ} &&
              binsof(pmp_dside_req_err) intersect {1});
-          illegal_bins illegal_machine_deny_read =
+          wildcard illegal_bins illegal_machine_deny_read =
             //MML related allowance for Machine Mode
-            (binsof(cp_priv_lvl_dside) intersect {PRIV_LVL_M} &&
+            (binsof(cp_region_priv_bits) intersect {5'b1????} &&
+             binsof(cp_priv_lvl_dside) intersect {PRIV_LVL_M} &&
              binsof(cp_req_type_dside) intersect {PMP_ACC_READ} &&
              binsof(pmp_dside_req_err) intersect {1})
             with (cp_region_priv_bits inside {MML_WRM_RU, MML_WRM_WRU, MML_RM_RU, MML_RM, MML_WRM,
                                               MML_XRM, MML_XRM_XU});
-          illegal_bins illegal_user_deny_read =
+          wildcard illegal_bins illegal_user_deny_read =
             //MML related allowance for User Mode
-            (binsof(cp_priv_lvl_dside) intersect {PRIV_LVL_U} &&
+            (binsof(cp_region_priv_bits) intersect {5'b1????} &&
+             binsof(cp_priv_lvl_dside) intersect {PRIV_LVL_U} &&
              binsof(cp_req_type_dside) intersect {PMP_ACC_READ} &&
              binsof(pmp_dside_req_err) intersect {1})
             with (cp_region_priv_bits inside {MML_WRM_RU, MML_WRM_WRU, MML_RM_RU, MML_RU, MML_WRU,
@@ -390,15 +398,17 @@ interface core_ibex_pmp_fcov_if import ibex_pkg::*; #(
              binsof(cp_req_type_dside) intersect {PMP_ACC_WRITE} &&
              binsof(pmp_dside_req_err) intersect {0})
             with (cp_priv_lvl_dside == PRIV_LVL_U || (cp_region_priv_bits & 5'b01000));
-          illegal_bins illegal_machine_allow_write =
+          wildcard illegal_bins illegal_machine_allow_write =
             // MML related disallowance for Machine Mode
-            (binsof(cp_priv_lvl_dside) intersect {PRIV_LVL_M} &&
+            (binsof(cp_region_priv_bits) intersect {5'b1????} &&
+             binsof(cp_priv_lvl_dside) intersect {PRIV_LVL_M} &&
              binsof(cp_req_type_dside) intersect {PMP_ACC_WRITE} &&
              binsof(pmp_dside_req_err) intersect {1})
             with (!(cp_region_priv_bits inside {MML_WRM_WRU, MML_WRM_RU, MML_WRM}));
-          illegal_bins illegal_user_allow_write =
+          wildcard illegal_bins illegal_user_allow_write =
             // MML related disallowance for User Mode
-            (binsof(cp_priv_lvl_dside) intersect {PRIV_LVL_U} &&
+            (binsof(cp_region_priv_bits) intersect {5'b1????} &&
+             binsof(cp_priv_lvl_dside) intersect {PRIV_LVL_U} &&
              binsof(cp_req_type_dside) intersect {PMP_ACC_WRITE} &&
              binsof(pmp_dside_req_err) intersect {1})
             with (!(cp_region_priv_bits inside {MML_WRM_WRU, MML_WRU, MML_XWRU}));
@@ -409,15 +419,17 @@ interface core_ibex_pmp_fcov_if import ibex_pkg::*; #(
             (binsof(cp_region_priv_bits) intersect {5'b0??1?} &&
              binsof(cp_req_type_dside) intersect {PMP_ACC_WRITE} &&
              binsof(pmp_dside_req_err) intersect {1});
-          illegal_bins illegal_machine_deny_write =
+          wildcard illegal_bins illegal_machine_deny_write =
             //MML related allowance for Machine Mode
-            (binsof(cp_priv_lvl_dside) intersect {PRIV_LVL_M} &&
+            (binsof(cp_region_priv_bits) intersect {5'b1????} &&
+             binsof(cp_priv_lvl_dside) intersect {PRIV_LVL_M} &&
              binsof(cp_req_type_dside) intersect {PMP_ACC_WRITE} &&
              binsof(pmp_dside_req_err) intersect {1})
             with (cp_region_priv_bits inside {MML_WRM_WRU, MML_WRM_RU, MML_WRM});
             //MML related allowance for User Mode
-          illegal_bins illegal_user_deny_write =
-            (binsof(cp_priv_lvl_dside) intersect {PRIV_LVL_U} &&
+          wildcard illegal_bins illegal_user_deny_write =
+            (binsof(cp_region_priv_bits) intersect {5'b1????} &&
+             binsof(cp_priv_lvl_dside) intersect {PRIV_LVL_U} &&
              binsof(cp_req_type_dside) intersect {PMP_ACC_WRITE} &&
              binsof(pmp_dside_req_err) intersect {1})
             with (cp_region_priv_bits inside {MML_WRM_WRU, MML_WRU, MML_XWRU});
@@ -425,11 +437,8 @@ interface core_ibex_pmp_fcov_if import ibex_pkg::*; #(
 
         rlb_csr_cross : cross cp_rlb, csr_wdata_mseccfg_rlb
           iff (fcov_csr_write && cs_registers_i.csr_addr_i == CSR_MSECCFG) {
-            illegal_bins illegal_sticky =
-              (binsof(csr_wdata_mseccfg_rlb) intersect {0} &&
-               binsof(cp_rlb) intersect {1});
-            // Trying to enable RLB when RLB is disabled and locked regions present is illegal
-            illegal_bins illegal_locked =
+            // Enabling RLB when RLB is disabled and locked regions present is illegal
+            bins illegal_sticky =
               (binsof(csr_wdata_mseccfg_rlb) intersect {1} &&
                binsof(cp_rlb) intersect {0})
               iff (cs_registers_i.g_pmp_registers.any_pmp_entry_locked);
@@ -437,14 +446,16 @@ interface core_ibex_pmp_fcov_if import ibex_pkg::*; #(
 
         mmwp_csr_cross : cross cp_mmwp, csr_wdata_mseccfg_mmwp
           iff (fcov_csr_write && cs_registers_i.csr_addr_i == CSR_MSECCFG) {
-            illegal_bins illegal_sticky =
+            // Disabling MMWP when it is already enabled is illegal
+            bins illegal_sticky =
               (binsof(csr_wdata_mseccfg_mmwp) intersect {0} &&
                binsof(cp_mmwp) intersect {1});
           }
 
         mml_sticky_cross : cross cp_mml, csr_wdata_mseccfg_mml
           iff (fcov_csr_write && cs_registers_i.csr_addr_i == CSR_MSECCFG) {
-            illegal_bins illegal_sticky =
+            // Disabling MML when it is already enabled is illegal
+            bins illegal_sticky =
               (binsof(csr_wdata_mseccfg_mml) intersect {0} &&
                binsof(cp_mml) intersect {1});
           }
@@ -466,6 +477,8 @@ interface core_ibex_pmp_fcov_if import ibex_pkg::*; #(
     end
 
     covergroup pmp_top_cg @(posedge clk_i);
+      option.per_instance = 1;
+      option.name = "pmp_top_cg";
       cp_pmp_iside_region_override :
         coverpoint g_pmp.pmp_i.g_access_check[PMP_I].fcov_pmp_region_override
           iff (if_stage_i.if_id_pipe_reg_we);
