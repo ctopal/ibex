@@ -91,7 +91,6 @@ class ibex_cosim_scoreboard extends uvm_scoreboard;
               run_cosim_ifetch_pmp();
             join_any
           end
-
           wait (instr_vif.instr_cb.reset === 1'b1);
         join_any
         disable fork;
@@ -139,6 +138,9 @@ class ibex_cosim_scoreboard extends uvm_scoreboard;
     forever begin
       dmem_port.get(mem_op);
       // Notify the cosim of all dside accesses emitted by the RTL
+
+      `uvm_info(`gfn, $sformatf("calling notify dside access to:\n%8h", mem_op.addr),
+        UVM_LOW)
       riscv_cosim_notify_dside_access(cosim_handle, mem_op.read_write == WRITE, mem_op.addr,
         mem_op.data, mem_op.be, mem_op.error, mem_op.misaligned_first, mem_op.misaligned_second);
     end

@@ -24,6 +24,7 @@ interface ibex_mem_intf#(
   wire                     error;
   wire                     misaligned_first;
   wire                     misaligned_second;
+  wire                     dmem_pmp_err;
 
   clocking request_driver_cb @(posedge clk);
     input   reset;
@@ -70,6 +71,7 @@ interface ibex_mem_intf#(
     input error;
     input misaligned_first;
     input misaligned_second;
+    input dmem_pmp_err;
   endclocking
 
   task automatic wait_clks(input int num);

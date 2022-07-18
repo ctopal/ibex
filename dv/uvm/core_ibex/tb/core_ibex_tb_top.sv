@@ -110,7 +110,7 @@ module core_ibex_tb_top;
     .instr_rdata_intg_i     (instr_mem_vif.rintg        ),
     .instr_err_i            (instr_mem_vif.error        ),
 
-    .data_req_o             (data_mem_vif.request       ),
+    .data_req_o             (),
     .data_gnt_i             (data_mem_vif.grant         ),
     .data_rvalid_i          (data_mem_vif.rvalid        ),
     .data_addr_o            (data_mem_vif.addr          ),
@@ -155,6 +155,8 @@ module core_ibex_tb_top;
   assign instr_mem_vif.we    = 0;
   assign instr_mem_vif.be    = 0;
   assign instr_mem_vif.wdata = 0;
+  assign instr_mem_vif.dmem_pmp_err = 0;
+
   // RVFI interface connections
   assign rvfi_if.reset         = ~rst_n;
   assign rvfi_if.valid         = dut.rvfi_valid;
@@ -243,6 +245,12 @@ module core_ibex_tb_top;
 
   assign data_mem_vif.misaligned_second =
     dut.u_ibex_top.u_ibex_core.load_store_unit_i.addr_incr_req_o;
+
+  assign data_mem_vif.request =
+    dut.u_ibex_top.u_ibex_core.load_store_unit_i.data_req_o;
+
+  assign data_mem_vif.dmem_pmp_err =
+    dut.u_ibex_top.u_ibex_core.load_store_unit_i.pmp_err_q;
 
   initial begin
     // Drive the clock and reset lines. Reset everything and start the clock at the beginning of
