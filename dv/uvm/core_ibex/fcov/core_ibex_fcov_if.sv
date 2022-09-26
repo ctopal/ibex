@@ -552,15 +552,15 @@ interface core_ibex_fcov_if import ibex_pkg::*; (
       // Not certain if InstrCategoryOtherIllegal can occur. Put it in illegal_bins for now and
       // revisit if any issues are seen
       illegal_bins illegal =
-        {InstrCategoryOther, InstrCategoryNone, InstrCategoryOtherIllegal,
+        {InstrCategoryOther, InstrCategoryNone, InstrCategoryOtherIllegal
          // [Debug Spec v1.0.0-STABLE, p.95]
          // > dret is an instruction which only has meaning while Debug Mode
          // Therefore, we can't single-step over it in normal mode.
-         InstrCategoryDRet,
+         // InstrCategoryDRet
          // [Debug Spec v1.0.0-STABLE, p.50]
          // > If the instruction being stepped over is wfi and would normally stall the hart,
          // > then instead the instruction is treated as nop.
-         InstrCategoryWFI
+         // InstrCategoryWFI
         };
     }
 

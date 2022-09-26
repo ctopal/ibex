@@ -577,6 +577,7 @@
   gen_opts: >
     +require_signature_addr=1
     +gen_debug_section=1
+    +no_dret=0
     +no_ebreak=0
     +no_ecall=0
     +no_branch_jump=0
