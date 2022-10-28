@@ -60,3 +60,31 @@ class ibex_breakpoint_stream extends riscv_directed_instr_stream;
   endfunction
 
 endclass
+
+// Define a short riscv-dv directed instruction stream to write random values to MSECCFG CSR
+class ibex_rand_mseccfg_stream extends riscv_directed_instr_stream;
+
+  `uvm_object_utils(ibex_rand_mseccfg_stream)
+
+  function new(string name = "");
+    super.new(name);
+  endfunction
+
+  function void post_randomize();
+    riscv_instr          csrrw_instr;
+    // Setup a randomized main body of instructions.
+    initialize_instr_list(1);
+    setup_allowed_instr(1, 1); // no_branch=1/no_load_store=1
+
+    csrrw_instr = riscv_instr::get_instr(CSRRWI);
+    csrrw_instr.comment = "lmao";
+    csrrw_instr.atomic = 1'b0;
+    csrrw_instr.has_label = 1'b1;
+    csrrw_instr.csr = MSECCFG;
+    csrrw_instr.rd = '0;
+    csrrw_instr.imm_str = $sformatf("0x%0x", $urandom_range(7,0));
+    //insert_instr(csrrw_instr);
+    instr_list = {csrrw_instr};
+  endfunction
+
+endclass
