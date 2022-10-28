@@ -88,3 +88,81 @@ class ibex_rand_mseccfg_stream extends riscv_directed_instr_stream;
   endfunction
 
 endclass
+
+// Define a short riscv-dv directed instruction stream to set a valid NA4 address/config
+class ibex_valid_na4_cfg_stream extends riscv_directed_instr_stream;
+
+  `uvm_object_utils(ibex_valid_na4_cfg_stream)
+
+  function new(string name = "");
+    super.new(name);
+  endfunction
+
+  function void post_randomize();
+    riscv_instr          cfg_csrrw_instr;
+    // Setup a randomized main body of instructions.
+    initialize_instr_list(1);
+    setup_allowed_instr(1, 1); // no_branch=1/no_load_store=1
+
+    cfg_csrrw_instr = riscv_instr::get_instr(CSRRSI);
+    cfg_csrrw_instr.comment = "cfg0 set";
+    cfg_csrrw_instr.atomic = 1'b0;
+    cfg_csrrw_instr.has_label = 1'b1;
+    cfg_csrrw_instr.csr = PMPCFG0;
+    cfg_csrrw_instr.rd = '0;
+    cfg_csrrw_instr.imm_str = $sformatf("%0d", $urandom_range(16,23));
+
+    //insert_instr(csrrw_instr);
+    instr_list = {cfg_csrrw_instr};
+  endfunction
+endclass
+
+// Define a short riscv-dv directed instruction stream to set a valid NA4 address/config
+class ibex_valid_na4_addr_stream extends riscv_directed_instr_stream;
+
+  `uvm_object_utils(ibex_valid_na4_addr_stream)
+
+  function new(string name = "");
+    super.new(name);
+  endfunction
+
+  function void post_randomize();
+    string               instr_label, gn;
+    riscv_pseudo_instr   la_instr;
+    riscv_instr          addr_csrrw_instr;
+    riscv_instr          srli_instr;
+    // Setup a randomized main body of instructions.
+    initialize_instr_list(3);
+    //setup_allowed_instr(1, 1); // no_branch=1/no_load_store=1
+
+    // Load the address of the trigger point as the (last insn of the stream + 4)
+    // Store in gpr[1] ()
+    la_instr = riscv_pseudo_instr::type_id::create("la_instr");
+    la_instr.pseudo_instr_name = LA;
+    la_instr.imm_str           = $sformatf("_start");
+    la_instr.rd                = cfg.gpr[1];
+
+
+    srli_instr = riscv_instr::get_instr(SRLI);
+    srli_instr.label = instr_label;
+    srli_instr.comment = "srli set";
+    srli_instr.atomic = 1'b0;
+    srli_instr.has_label = 1'b1;
+    srli_instr.rs1 = cfg.gpr[1];
+    srli_instr.rd = cfg.gpr[1];
+    srli_instr.imm_str = $sformatf("2");
+
+    gn = get_name();
+    instr_label = {gn};
+    addr_csrrw_instr = riscv_instr::get_instr(CSRRW);
+    addr_csrrw_instr.label = instr_label;
+    addr_csrrw_instr.comment = "addr0 set";
+    addr_csrrw_instr.atomic = 1'b0;
+    addr_csrrw_instr.has_label = 1'b1;
+    addr_csrrw_instr.csr = PMPADDR0;
+    addr_csrrw_instr.rs1 = cfg.gpr[1];
+    addr_csrrw_instr.rd = '0;
+    instr_list = {la_instr, srli_instr, addr_csrrw_instr};
+  endfunction
+
+endclass
